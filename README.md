@@ -13,7 +13,7 @@ Based on Original Library created by Felix, I added the following features:
 - added setBaudRate(rate) to change speed (I.E. setBaudRate(60000) to 60Kbps (default library is setup for 55555)
 - remove lockup in initialize function if RFM69 is not found (timed out) now initialize returns true if module was found
 
-The examples folder has not been modified and thus may not compile for Spark Core, but modify them is straigth forward
+The examples folder has not been modified and thus may not compile for Spark Core, but changing them is straigth forward
  
 
 
