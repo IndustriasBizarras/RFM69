@@ -1,0 +1,8 @@
+{
+  "name": "rfm69",
+  "author": "Felix Russu, modified by Charles-Henri Hallard",
+  "license": "GNU GPLv3",
+  "version": "0.0.9",
+  "description": "An Implementation of HopeRF RFM69 RF module, based on Felix RFM69 for Moteino",
+  "namespace": "RFM69"
+}
