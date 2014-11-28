@@ -6,31 +6,35 @@
 // **********************************************************************************
 // License
 // **********************************************************************************
-// This program is free software; you can redistribute it 
-// and/or modify it under the terms of the GNU General    
-// Public License as published by the Free Software       
-// Foundation; either version 3 of the License, or        
-// (at your option) any later version.                    
-//                                                        
-// This program is distributed in the hope that it will   
-// be useful, but WITHOUT ANY WARRANTY; without even the  
-// implied warranty of MERCHANTABILITY or FITNESS FOR A   
-// PARTICULAR PURPOSE. See the GNU General Public        
-// License for more details.                              
-//                                                        
-// You should have received a copy of the GNU General    
+// This program is free software; you can redistribute it
+// and/or modify it under the terms of the GNU General
+// Public License as published by the Free Software
+// Foundation; either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will
+// be useful, but WITHOUT ANY WARRANTY; without even the
+// implied warranty of MERCHANTABILITY or FITNESS FOR A
+// PARTICULAR PURPOSE. See the GNU General Public
+// License for more details.
+//
+// You should have received a copy of the GNU General
 // Public License along with this program.
 // If not, see <http://www.gnu.org/licenses/>.
-//                                                        
-// Licence can be viewed at                               
+//
+// Licence can be viewed at
 // http://www.gnu.org/licenses/gpl-3.0.txt
 //
 // Please maintain this license information along with authorship
 // and copyright notices in any redistribution of this code
 // **********************************************************************************
-#include <RFM69.h>
-#include <RFM69registers.h>
-#include <SPI.h>
+
+
+#if defined(SPARK)
+#include "application.h"
+#endif
+#include "RFM69.h"
+#include "RFM69registers.h"
 
 volatile byte RFM69::DATA[RF69_MAX_DATA_LEN];
 volatile byte RFM69::_mode;       // current transceiver state
@@ -45,6 +49,7 @@ RFM69* RFM69::selfPointer;
 
 bool RFM69::initialize(byte freqBand, byte nodeID, byte networkID)
 {
+  unsigned long start_to;
   const byte CONFIG[][2] =
   {
     /* 0x01 */ { REG_OPMODE, RF_OPMODE_SEQUENCER_ON | RF_OPMODE_LISTEN_OFF | RF_OPMODE_STANDBY },
@@ -57,7 +62,7 @@ bool RFM69::initialize(byte freqBand, byte nodeID, byte networkID)
     /* 0x07 */ { REG_FRFMSB, (freqBand==RF69_315MHZ ? RF_FRFMSB_315 : (freqBand==RF69_433MHZ ? RF_FRFMSB_433 : (freqBand==RF69_868MHZ ? RF_FRFMSB_868 : RF_FRFMSB_915))) },
     /* 0x08 */ { REG_FRFMID, (freqBand==RF69_315MHZ ? RF_FRFMID_315 : (freqBand==RF69_433MHZ ? RF_FRFMID_433 : (freqBand==RF69_868MHZ ? RF_FRFMID_868 : RF_FRFMID_915))) },
     /* 0x09 */ { REG_FRFLSB, (freqBand==RF69_315MHZ ? RF_FRFLSB_315 : (freqBand==RF69_433MHZ ? RF_FRFLSB_433 : (freqBand==RF69_868MHZ ? RF_FRFLSB_868 : RF_FRFLSB_915))) },
-    
+
     // looks like PA1 and PA2 are not implemented on RFM69W, hence the max output power is 13dBm
     // +17dBm and +20dBm are possible on RFM69HW
     // +13dBm formula: Pout=-18+OutputPower (with PA0 or PA1**)
@@ -65,7 +70,7 @@ bool RFM69::initialize(byte freqBand, byte nodeID, byte networkID)
     // +20dBm formula: Pout=-11+OutputPower (with PA1 and PA2)** and high power PA settings (section 3.3.7 in datasheet)
     ///* 0x11 */ { REG_PALEVEL, RF_PALEVEL_PA0_ON | RF_PALEVEL_PA1_OFF | RF_PALEVEL_PA2_OFF | RF_PALEVEL_OUTPUTPOWER_11111},
     ///* 0x13 */ { REG_OCP, RF_OCP_ON | RF_OCP_TRIM_95 }, //over current protection (default is 95mA)
-    
+
     // RXBW defaults are { REG_RXBW, RF_RXBW_DCCFREQ_010 | RF_RXBW_MANT_24 | RF_RXBW_EXP_5} (RxBw: 10.4khz)
     /* 0x19 */ { REG_RXBW, RF_RXBW_DCCFREQ_010 | RF_RXBW_MANT_16 | RF_RXBW_EXP_2 }, //(BitRate < 2 * RxBw)
     //for BR-19200: //* 0x19 */ { REG_RXBW, RF_RXBW_DCCFREQ_010 | RF_RXBW_MANT_24 | RF_RXBW_EXP_3 },
@@ -88,10 +93,19 @@ bool RFM69::initialize(byte freqBand, byte nodeID, byte networkID)
 
   pinMode(_slaveSelectPin, OUTPUT);
   SPI.begin();
+ 
+  // Set time out to 50ms
+  #define TIME_OUT 50
   
-  do writeReg(REG_SYNCVALUE1, 0xaa); while (readReg(REG_SYNCVALUE1) != 0xaa);
-	do writeReg(REG_SYNCVALUE1, 0x55); while (readReg(REG_SYNCVALUE1) != 0x55);
+  start_to = millis() ;
 
+  do writeReg(REG_SYNCVALUE1, 0xaa); while (readReg(REG_SYNCVALUE1) != 0xaa && millis()-start_to < TIME_OUT);
+  if (millis()-start_to >= TIME_OUT) return (false);
+    
+  // Set time out 
+  start_to = millis()  ;  
+	do writeReg(REG_SYNCVALUE1, 0x55); while (readReg(REG_SYNCVALUE1) != 0x55 && millis()-start_to < TIME_OUT);
+  if (millis()-start_to >= TIME_OUT) return (false);
   for (byte i = 0; CONFIG[i][0] != 255; i++)
     writeReg(CONFIG[i][0], CONFIG[i][1]);
 
@@ -101,7 +115,10 @@ bool RFM69::initialize(byte freqBand, byte nodeID, byte networkID)
 
   setHighPower(_isRFM69HW); //called regardless if it's a RFM69W or RFM69HW
   setMode(RF69_MODE_STANDBY);
-	while ((readReg(REG_IRQFLAGS1) & RF_IRQFLAGS1_MODEREADY) == 0x00); // Wait for ModeReady
+  // Set time out 
+  start_to = millis() ;
+	while (((readReg(REG_IRQFLAGS1) & RF_IRQFLAGS1_MODEREADY) == 0x00) && millis()-start_to < TIME_OUT); // Wait for ModeReady
+  if (millis()-start_to >= TIME_OUT) return (false);
   attachInterrupt(_interruptNum, RFM69::isr0, RISING);
 
   selfPointer = this;
@@ -259,14 +276,14 @@ void RFM69::sendFrame(byte toAddress, const void* buffer, byte bufferSize, bool 
 	SPI.transfer(bufferSize + 3);
 	SPI.transfer(toAddress);
   SPI.transfer(_address);
-  
+
   //control byte
   if (sendACK)
     SPI.transfer(0x80);
   else if (requestACK)
     SPI.transfer(0x40);
   else SPI.transfer(0x00);
-  
+
 	for (byte i = 0; i < bufferSize; i++)
     SPI.transfer(((byte*)buffer)[i]);
 	unselect();
@@ -304,10 +321,10 @@ void RFM69::interruptHandler() {
     DATALEN = PAYLOADLEN - 3;
     SENDERID = SPI.transfer(0);
     byte CTLbyte = SPI.transfer(0);
-    
+
     ACK_RECEIVED = CTLbyte & 0x80; //extract ACK-requested flag
     ACK_REQUESTED = CTLbyte & 0x40; //extract ACK-received flag
-    
+
     for (byte i= 0; i < DATALEN; i++)
     {
       DATA[i] = SPI.transfer(0);
@@ -405,12 +422,15 @@ void RFM69::writeReg(byte addr, byte value)
 void RFM69::select() {
   noInterrupts();
   //save current SPI settings
+  #ifndef SPARK
   _SPCR = SPCR;
   _SPSR = SPSR;
+  #endif
   //set RFM69 SPI settings
   SPI.setDataMode(SPI_MODE0);
   SPI.setBitOrder(MSBFIRST);
-  SPI.setClockDivider(SPI_CLOCK_DIV4); //decided to slow down from DIV2 after SPI stalling in some instances, especially visible on mega1284p when RFM69 and FLASH chip both present
+  //SPI_CLOCK_DIV16; // 72MHz / 16 = 4.5MHz
+  SPI.setClockDivider(SPI_CLOCK_DIV16);
   digitalWrite(_slaveSelectPin, LOW);
 }
 
@@ -418,8 +438,10 @@ void RFM69::select() {
 void RFM69::unselect() {
   digitalWrite(_slaveSelectPin, HIGH);
   //restore SPI settings to what they were before talking to RFM69
+  #ifndef SPARK
   SPCR = _SPCR;
   SPSR = _SPSR;
+  #endif
   interrupts();
 }
 
@@ -439,6 +461,13 @@ void RFM69::setHighPower(bool onOff) {
     writeReg(REG_PALEVEL, RF_PALEVEL_PA0_ON | RF_PALEVEL_PA1_OFF | RF_PALEVEL_PA2_OFF | _powerLevel); //enable P0 only
 }
 
+void RFM69::setBaudRate(uint16_t speedBPS) {
+
+  uint16_t baudRate = 32000000L / speedBPS;;
+  
+  writeReg(REG_BITRATEMSB, (baudRate >> 8) & 0xFF);
+  writeReg(REG_BITRATELSB, (baudRate >> 0) & 0xFF);
+}
 void RFM69::setHighPowerRegs(bool onOff) {
   writeReg(REG_TESTPA1, onOff ? 0x5D : 0x55);
   writeReg(REG_TESTPA2, onOff ? 0x7C : 0x70);
@@ -449,11 +478,42 @@ void RFM69::setCS(byte newSPISlaveSelect) {
   pinMode(_slaveSelectPin, OUTPUT);
 }
 
+
+void RFM69::setIRQ(byte newIRQ) {
+  // start to remove old IRQ Handler to be safe
+  detachInterrupt(_interruptNum);
+
+  #if defined(__AVR_ATmega168__) || defined(__AVR_ATmega328P__) || defined(__AVR_ATmega88) || defined(__AVR_ATmega8__) || defined(__AVR_ATmega88__)
+    //  External IRQ authorized are D2 (INT0) or D3 (INT1)
+    _interruptPin = newIRQ;
+    _interruptNum = newIRQ-2;
+  #elif defined(__AVR_ATmega644P__) || defined(__AVR_ATmega1284P__)
+    //  IRQ authorized are D10 (INT0), D11 (INT1) or D2 (INT2)
+    if (newIRQ==10 || newIRQ==11 || newIRQ==2)
+    {
+      _interruptPin = newIRQ;
+      _interruptNum = newIRQ==2?3:newIRQ-10;
+    }
+  #elif defined(SPARK)
+    // IRQ authorized on spark core are
+    // D0, D1, D2, D3, D4, A0, A1, A3, A4, A5, A6, A7
+    // see http://docs.spark.io/firmware/#interrupts-attachinterrupt
+    if ( (newIRQ>=D0 && newIRQ<=D4 ) || (newIRQ>=A0 && newIRQ<=A7 && newIRQ!=A2) )
+    {
+      _interruptPin = newIRQ;
+      _interruptNum = _interruptPin;
+    }
+  #else
+    #error Target not supported for external Interrupts
+  #endif
+}
+
+
 //for debugging
 void RFM69::readAllRegs()
 {
   byte regVal;
-	
+
   for (byte regAddr = 1; regAddr <= 0x4F; regAddr++)
 	{
     select();

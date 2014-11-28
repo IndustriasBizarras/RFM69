@@ -6,23 +6,23 @@
 // **********************************************************************************
 // License
 // **********************************************************************************
-// This program is free software; you can redistribute it 
-// and/or modify it under the terms of the GNU General    
-// Public License as published by the Free Software       
-// Foundation; either version 3 of the License, or        
-// (at your option) any later version.                    
-//                                                        
-// This program is distributed in the hope that it will   
-// be useful, but WITHOUT ANY WARRANTY; without even the  
-// implied warranty of MERCHANTABILITY or FITNESS FOR A   
-// PARTICULAR PURPOSE. See the GNU General Public        
-// License for more details.                              
-//                                                        
-// You should have received a copy of the GNU General    
+// This program is free software; you can redistribute it
+// and/or modify it under the terms of the GNU General
+// Public License as published by the Free Software
+// Foundation; either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will
+// be useful, but WITHOUT ANY WARRANTY; without even the
+// implied warranty of MERCHANTABILITY or FITNESS FOR A
+// PARTICULAR PURPOSE. See the GNU General Public
+// License for more details.
+//
+// You should have received a copy of the GNU General
 // Public License along with this program.
 // If not, see <http://www.gnu.org/licenses/>.
-//                                                        
-// Licence can be viewed at                               
+//
+// Licence can be viewed at
 // http://www.gnu.org/licenses/gpl-3.0.txt
 //
 // Please maintain this license information along with authorship
@@ -30,7 +30,6 @@
 // **********************************************************************************
 #ifndef RFM69_h
 #define RFM69_h
-#include <Arduino.h>            //assumes Arduino IDE v1.0 or greater
 
 #define RF69_MAX_DATA_LEN         61 // to take advantage of the built in AES/CRC we want to limit the frame size to the internal FIFO size (66 bytes - 3 bytes overhead)
 #define RF69_SPI_CS               SS // SS is the SPI slave select pin, for instance D10 on atmega328
@@ -45,6 +44,10 @@
 #elif defined(__AVR_ATmega32U4__)
   #define RF69_IRQ_PIN          3
   #define RF69_IRQ_NUM          0
+// On spark core interrupt is defined only with pin
+#elif defined(SPARK)
+  #define RF69_IRQ_PIN          2
+  #define RF69_IRQ_NUM          RF69_IRQ_PIN
 #endif
 
 
@@ -79,7 +82,7 @@ class RFM69 {
     static volatile byte ACK_RECEIVED; /// Should be polled immediately after sending a packet with ACK request
     static volatile int RSSI; //most accurate RSSI during reception (closest to the reception)
     static volatile byte _mode; //should be protected?
-    
+
     RFM69(byte slaveSelectPin=RF69_SPI_CS, byte interruptPin=RF69_IRQ_PIN, bool isRFM69HW=false, byte interruptNum=RF69_IRQ_NUM) {
       _slaveSelectPin = slaveSelectPin;
       _interruptPin = interruptPin;
@@ -104,8 +107,10 @@ class RFM69 {
     void setFrequency(uint32_t freqHz);
     void encrypt(const char* key);
     void setCS(byte newSPISlaveSelect);
+    void setIRQ(byte newIRQ);
     int readRSSI(bool forceTrigger=false);
     void promiscuous(bool onOff=true);
+    void setBaudRate(uint16_t speedBPS);
     void setHighPower(bool onOFF=true); //have to call it after initialize for RFM69HW
     void setPowerLevel(byte level); //reduce/increase transmit power level
     void sleep();

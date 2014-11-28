@@ -4,6 +4,26 @@ By Felix Rusu (felix@lowpowerlab.com)
 <br/>
 RFM69 library for RFM69W, RFM69HW, RFM69CW, RFM69HCW (semtech SX1231, SX1231H)
 
+
+
+   void setIRQ(byte newIRQ);
+
+    void setBaudRate(uint16_t speedBPS);
+
+void RFM69::setIRQ(byte newIRQ) {
+
+###
+
+Based on Original Library created by Felix, I added the following features:
+- Compile and works on Spark Core 
+- added setIRQ(pin) to be able to set IRQ attached pin
+- added setBaudRate(rate) to change speed (I.E. setBaudRate(60000) to 60Kbps (default library is setup for 55555)
+- remove lockup in initialize function if RFM69 is not found (timed out) now initialize returns true if module was found
+
+The examples folder has not been modified and thus may not compile for Spark Core, but modify them is straigth forward
+ 
+
+
 ##License
 GPL 3.0, please see the License.txt file
 
