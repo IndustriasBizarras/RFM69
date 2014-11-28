@@ -5,14 +5,7 @@ By Felix Rusu (felix@lowpowerlab.com)
 RFM69 library for RFM69W, RFM69HW, RFM69CW, RFM69HCW (semtech SX1231, SX1231H)
 
 
-
-   void setIRQ(byte newIRQ);
-
-    void setBaudRate(uint16_t speedBPS);
-
-void RFM69::setIRQ(byte newIRQ) {
-
-###
+###New version compatible with Spark Core
 
 Based on Original Library created by Felix, I added the following features:
 - Compile and works on Spark Core 
